@@ -7,7 +7,9 @@
 ![Supabase](https://img.shields.io/badge/Supabase-Postgres-3FCF8E?style=flat-square&logo=supabase&logoColor=white)
 ![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-daily-2088FF?style=flat-square&logo=githubactions&logoColor=white)
 ![Streamlit](https://img.shields.io/badge/Streamlit-dashboard-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)
-**📊 Live dashboard:** [malaysia-fuel-prices.streamlit.app](PASTE-YOUR-STREAMLIT-LINK-HERE)
+
+**📊 Live dashboard:** [malaysia-fuel-prices.streamlit.app](https://malaysia-fuel-prices.streamlit.app/)
+
 ![Dashboard](docs/dashboard.png)
 
 ---
@@ -24,7 +26,7 @@ flowchart LR
     B -->|dbt| C[("🥈 stg_fuelprice<br/>clean weekly prices")]
     C -->|dbt| D[("🥇 fct_fuel_prices_weekly<br/>changes + 4-wk avg")]
     C -->|dbt| E[("🥇 mart_fuel_monthly<br/>monthly averages")]
-    D --> F["📊 Looker Studio"]
+    D --> F["📊 Streamlit dashboard"]
     E --> F
     G["⏰ GitHub Actions<br/>daily 9am MYT"] -.runs.-> A
 ```
@@ -36,33 +38,45 @@ flowchart LR
 | 🥇 Gold | `analytics_marts.fct_fuel_prices_weekly` | Week-on-week change and a 4-week moving average |
 | 🥇 Gold | `analytics_marts.mart_fuel_monthly` | Monthly averages and monthly price range, for the dashboard |
 
+## What the dashboard shows
+
+- **This week's prices** for RON95 (market), RON95 (BUDI95), RON97 and diesel, with the change from last week
+- **Weekly price trend**, switchable between the last year, the last 3 years and all history
+- **RON95 market price vs BUDI95**, showing the size of the subsidy gap per litre
+- **Monthly averages** for RON97 and diesel
+- **The latest 10 weeks** as a table with week-on-week changes
+
 ## How it works
 
 1. **Extract & load** (`ingest/extract_load.py`): calls the data.gov.my Data Catalogue API, retries politely on rate limits (the API allows 4 requests a minute), and **upserts** into Postgres, so re-running never creates duplicates.
 2. **Transform** (`dbt/`): dbt turns the raw JSON into clean staging and mart models, built in dependency order.
 3. **Test**: dbt checks that every week appears once (`unique`) and that no date or RON97 price is missing (`not_null`). If the source data ever changes shape, the run fails loudly instead of quietly serving wrong numbers.
-4. **Schedule** (`.github/workflows/pipeline.yml`): GitHub Actions runs the whole thing every day at 9am Malaysia time. Credentials live in encrypted repository secrets, never in the code.
-5. **Serve**: Looker Studio reads the Gold tables through a **read-only database user** that can only `SELECT` from the marts.
+4. **Schedule** (`.github/workflows/pipeline.yml`): GitHub Actions runs extract, load, transform and test every day at 9am Malaysia time. Credentials live in encrypted repository secrets, never in the code.
+5. **Serve** (`dashboard/app.py`): a Streamlit app reads the Gold tables through a **read-only database user** and is hosted free on Streamlit Community Cloud. Query results are cached for an hour, so the database isn't hit on every click.
 
 ## Repo structure
 
 ```
 Malaysia-Open-Data-Pipeline/
 ├── ingest/
-│   └── extract_load.py          # API → raw.fuelprice (upsert)
+│   └── extract_load.py             # API → raw.fuelprice (upsert)
 ├── dbt/
 │   ├── dbt_project.yml
-│   ├── profiles.yml             # reads credentials from environment variables
+│   ├── profiles.yml                # reads credentials from environment variables
 │   └── models/
 │       ├── sources.yml
 │       ├── staging/
 │       │   ├── stg_fuelprice.sql
-│       │   └── schema.yml       # data tests
+│       │   └── schema.yml          # data tests
 │       └── marts/
 │           ├── fct_fuel_prices_weekly.sql
 │           └── mart_fuel_monthly.sql
+├── dashboard/
+│   ├── app.py                      # Streamlit dashboard
+│   └── requirements.txt
 ├── .github/workflows/pipeline.yml  # daily schedule
 ├── docs/dashboard.png
+├── .env.example
 └── requirements.txt
 ```
 
@@ -70,7 +84,7 @@ Malaysia-Open-Data-Pipeline/
 
 1. Create a free [Supabase](https://supabase.com) project and copy its **Session pooler** connection details.
 2. Copy `.env.example` to `.env` and fill in your details.
-3. Run:
+3. Run the pipeline:
 ```powershell
    python -m venv .venv
    .venv\Scripts\activate
@@ -79,17 +93,19 @@ Malaysia-Open-Data-Pipeline/
    Get-Content .env | ForEach-Object { $n, $v = $_ -split '=', 2; Set-Item "env:$n" $v }
    dbt build --project-dir dbt --profiles-dir dbt
 ```
-4. To automate it, add `PGHOST`, `PGPORT`, `PGUSER` and `PGPASSWORD` as GitHub Actions secrets.
+4. Open the dashboard locally:
+```powershell
+   pip install -r dashboard/requirements.txt
+   streamlit run dashboard/app.py
+```
+5. To automate it, add `PGHOST`, `PGPORT`, `PGUSER` and `PGPASSWORD` as GitHub Actions secrets.
 
-5. **Serve** (`dashboard/app.py`): a Streamlit app reads the Gold tables through a **read-only database user** and is hosted free on Streamlit Community Cloud. Results are cached for an hour, so the database isn't queried on every click.
+## What I learned
 
-## Deploy the Streamlit dashboard
-
-Deploy `dashboard/app.py` with `dashboard/requirements.txt`. Add `PGHOST`,
-`PGUSER`, and `PGPASSWORD` to the app's Streamlit secrets (or environment
-variables); `PGPORT` defaults to `5432` and `PGDATABASE` defaults to `postgres`.
-Use the database connection details for the Supabase project that contains the
-`analytics_marts` tables.
+- **Keep raw data untouched.** Storing the API response as-is in Bronze meant I could change my cleaning logic later without calling the API again.
+- **Make loads repeatable.** Upserting on `(date, series_type)` means the daily job can run any number of times without duplicating rows.
+- **Test the data, not just the code.** dbt tests catch problems in the source data before they reach the dashboard.
+- **Give each part only the access it needs.** The pipeline writes with one login; the dashboard reads with a separate read-only one.
 
 ## What I'd add next
 
