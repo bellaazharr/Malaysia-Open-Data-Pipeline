@@ -5,41 +5,27 @@ import pandas as pd
 import psycopg
 import streamlit as st
 from dotenv import load_dotenv
-from streamlit.errors import StreamlitSecretNotFoundError
 
-load_dotenv()
+load_dotenv()  # local: reads .env
 st.set_page_config(page_title="Malaysia Fuel Prices", page_icon="⛽", layout="wide")
 
+KEYS = ["PGHOST", "PGPORT", "PGUSER", "PGPASSWORD", "PGDATABASE"]
 
-def database_config() -> dict[str, str | int]:
-    config = {}
-    for name, parameter in (
-        ("PGHOST", "host"),
-        ("PGPORT", "port"),
-        ("PGUSER", "user"),
-        ("PGPASSWORD", "password"),
-        ("PGDATABASE", "dbname"),
-    ):
-        value = os.getenv(name)
-        if not value:
-            try:
-                value = st.secrets.get(name)
-            except StreamlitSecretNotFoundError:
-                value = None
-        if value:
-            config[parameter] = value
 
-    config.setdefault("port", 5432)
-    config.setdefault("dbname", "postgres")
-    required = {"PGHOST": "host", "PGUSER": "user", "PGPASSWORD": "password"}
-    missing = [name for name, parameter in required.items() if not config.get(parameter)]
-    if missing:
-        st.error(
-            f"Database configuration is incomplete: {', '.join(missing)}. "
-            "Set these values in the app environment or Streamlit secrets."
-        )
-        st.stop()
-    return config
+def database_config():
+    """Read login details from Streamlit secrets (cloud) or .env (laptop)."""
+    try:
+        secrets = {k: st.secrets[k] for k in KEYS if k in st.secrets}
+    except Exception:  # no secrets file when running locally
+        secrets = {}
+    cfg = {k: secrets.get(k) or os.getenv(k) for k in KEYS}
+    return {
+        "host": cfg["PGHOST"],
+        "port": cfg["PGPORT"] or "5432",
+        "user": cfg["PGUSER"],
+        "password": cfg["PGPASSWORD"],
+        "dbname": cfg["PGDATABASE"] or "postgres",
+    }
 
 
 @st.cache_data(ttl=3600)  # re-query at most once an hour
