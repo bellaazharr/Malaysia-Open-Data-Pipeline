@@ -6,10 +6,8 @@
 ![dbt](https://img.shields.io/badge/dbt-Postgres-FF694B?style=flat-square&logo=dbt&logoColor=white)
 ![Supabase](https://img.shields.io/badge/Supabase-Postgres-3FCF8E?style=flat-square&logo=supabase&logoColor=white)
 ![GitHub Actions](https://img.shields.io/badge/GitHub%20Actions-daily-2088FF?style=flat-square&logo=githubactions&logoColor=white)
-![Looker Studio](https://img.shields.io/badge/Looker%20Studio-dashboard-4285F4?style=flat-square&logo=looker&logoColor=white)
-
-**📊 Live dashboard:** [open in Looker Studio](PASTE-YOUR-DASHBOARD-LINK-HERE)
-
+![Streamlit](https://img.shields.io/badge/Streamlit-dashboard-FF4B4B?style=flat-square&logo=streamlit&logoColor=white)
+**📊 Live dashboard:** [malaysia-fuel-prices.streamlit.app](PASTE-YOUR-STREAMLIT-LINK-HERE)
 ![Dashboard](docs/dashboard.png)
 
 ---
@@ -82,6 +80,8 @@ Malaysia-Open-Data-Pipeline/
    dbt build --project-dir dbt --profiles-dir dbt
 ```
 4. To automate it, add `PGHOST`, `PGPORT`, `PGUSER` and `PGPASSWORD` as GitHub Actions secrets.
+
+5. **Serve** (`dashboard/app.py`): a Streamlit app reads the Gold tables through a **read-only database user** and is hosted free on Streamlit Community Cloud. Results are cached for an hour, so the database isn't queried on every click.
 
 ## Deploy the Streamlit dashboard
 
