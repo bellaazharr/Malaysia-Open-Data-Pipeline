@@ -1,0 +1,7 @@
+version: 2
+sources:
+  - name: raw
+    schema: raw
+    tables:
+      - name: fuelprice
+        description: Weekly fuel prices from data.gov.my, loaded as-is

@@ -1,0 +1,13 @@
+name: fuel_pipeline
+version: "1.0.0"
+profile: fuel_pipeline
+model-paths: ["models"]
+
+models:
+  fuel_pipeline:
+    staging:
+      +materialized: view
+      +schema: staging
+    marts:
+      +materialized: table
+      +schema: marts

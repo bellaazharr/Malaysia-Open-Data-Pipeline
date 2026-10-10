@@ -1,0 +1,9 @@
+version: 2
+models:
+  - name: stg_fuelprice
+    description: Cleaned weekly fuel prices (RM per litre)
+    columns:
+      - name: price_date
+        data_tests: [unique, not_null]
+      - name: ron97
+        data_tests: [not_null]
