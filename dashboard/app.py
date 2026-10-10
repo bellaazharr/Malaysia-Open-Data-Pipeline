@@ -1,16 +1,50 @@
 """Malaysia fuel price dashboard: reads the dbt Gold tables in Supabase."""
+import os
+
 import pandas as pd
 import psycopg
 import streamlit as st
 from dotenv import load_dotenv
+from streamlit.errors import StreamlitSecretNotFoundError
 
-load_dotenv()  # local: reads .env | Streamlit Cloud: reads app secrets
+load_dotenv()
 st.set_page_config(page_title="Malaysia Fuel Prices", page_icon="⛽", layout="wide")
+
+
+def database_config() -> dict[str, str | int]:
+    config = {}
+    for name, parameter in (
+        ("PGHOST", "host"),
+        ("PGPORT", "port"),
+        ("PGUSER", "user"),
+        ("PGPASSWORD", "password"),
+        ("PGDATABASE", "dbname"),
+    ):
+        value = os.getenv(name)
+        if not value:
+            try:
+                value = st.secrets.get(name)
+            except StreamlitSecretNotFoundError:
+                value = None
+        if value:
+            config[parameter] = value
+
+    config.setdefault("port", 5432)
+    config.setdefault("dbname", "postgres")
+    required = {"PGHOST": "host", "PGUSER": "user", "PGPASSWORD": "password"}
+    missing = [name for name, parameter in required.items() if not config.get(parameter)]
+    if missing:
+        st.error(
+            f"Database configuration is incomplete: {', '.join(missing)}. "
+            "Set these values in the app environment or Streamlit secrets."
+        )
+        st.stop()
+    return config
 
 
 @st.cache_data(ttl=3600)  # re-query at most once an hour
 def query(sql: str) -> pd.DataFrame:
-    with psycopg.connect(sslmode="require") as conn, conn.cursor() as cur:
+    with psycopg.connect(**database_config(), sslmode="require") as conn, conn.cursor() as cur:
         cur.execute(sql)
         cols = [c.name for c in cur.description]
         return pd.DataFrame(cur.fetchall(), columns=cols)

@@ -83,6 +83,14 @@ Malaysia-Open-Data-Pipeline/
 ```
 4. To automate it, add `PGHOST`, `PGPORT`, `PGUSER` and `PGPASSWORD` as GitHub Actions secrets.
 
+## Deploy the Streamlit dashboard
+
+Deploy `dashboard/app.py` with `dashboard/requirements.txt`. Add `PGHOST`,
+`PGUSER`, and `PGPASSWORD` to the app's Streamlit secrets (or environment
+variables); `PGPORT` defaults to `5432` and `PGDATABASE` defaults to `postgres`.
+Use the database connection details for the Supabase project that contains the
+`analytics_marts` tables.
+
 ## What I'd add next
 
 - **A second dataset**, such as consumer price inflation (CPI) from OpenDOSM, to see whether fuel price changes show up in the cost of living.
